@@ -5,7 +5,7 @@ During evaluation, it is used by inference_core.py
 
 It further depends on modules.py which gives more detailed implementations of sub-modules
 """
-
+from PointRend import point_rend_main
 import torch
 import torch.nn as nn
 
@@ -36,7 +36,8 @@ class XMem(nn.Module):
 
         if model_weights is not None:
             self.load_weights(model_weights, init_as_zero_if_needed=True)
-
+        
+        
     def encode_key(self, frame, need_sk=True, need_ek=True): 
         # Determine input shape
         if len(frame.shape) == 5:
@@ -106,12 +107,24 @@ class XMem(nn.Module):
 
     def segment(self, multi_scale_features, memory_readout,
                     hidden_state, selector=None, h_out=True, strip_bg=True): 
-
         hidden_state, logits = self.decoder(*multi_scale_features, hidden_state, memory_readout, h_out=h_out)
         prob = torch.sigmoid(logits)
         if selector is not None:
             prob = prob * selector
-            
+        ##pointrend##
+        multi_scale_features_stacked=torch.stack(multi_scale_features)
+        features_stacked=torch.stack([memory_readout,
+                                     multi_scale_features_stacked,
+                                     hidden_state,
+                                     prob])
+        pointrend_probibility_stacked=point_rend_main(features_stacked)
+        print("*"*100,"pointrend_probibility_stacked.shape",pointrend_probibility_stacked.shape)
+        print("*"*100,"prob.shape",prob.shape)
+        in_dim=pointrend_probibility_stacked.shape[0]
+        out_dim=prob.shape[1]
+        fc=torch.nn.Linear(in_dim,out_dim)
+        prob=fc(pointrend_probibility_stacked)
+        ##above pointrend##
         logits, prob = aggregate(prob, dim=1, return_logits=True)
         if strip_bg:
             # Strip away the background
