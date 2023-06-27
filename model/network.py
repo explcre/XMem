@@ -111,8 +111,14 @@ class XMem(nn.Module):
         prob = torch.sigmoid(logits)
         if selector is not None:
             prob = prob * selector
+        '''
         ##pointrend##
-        multi_scale_features_stacked=torch.cat(multi_scale_features)
+        for idx,features_i in enumerate(multi_scale_features):
+            print("*"*100,f"multi_scale_features{idx}.shape",features_i.shape)
+        print("*"*100,"memory_readout.shape",memory_readout.shape)
+        print("*"*100,"hidden_state.shape",hidden_state.shape)
+        #multi_scale_features_stacked=torch.stack(multi_scale_features)
+        multi_scale_features_stacked = torch.stack(multi_scale_features, dim=1)
         features_stacked=torch.stack([memory_readout,
                                      multi_scale_features_stacked,
                                      hidden_state,
@@ -125,6 +131,7 @@ class XMem(nn.Module):
         fc=torch.nn.Linear(in_dim,out_dim)
         prob=fc(pointrend_probibility_stacked)
         ##above pointrend##
+        '''
         logits, prob = aggregate(prob, dim=1, return_logits=True)
         if strip_bg:
             # Strip away the background

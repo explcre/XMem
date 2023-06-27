@@ -17,6 +17,7 @@ import torch.nn.functional as F
 from model.group_modules import *
 from model import resnet
 from model.cbam import CBAM
+from PointRend import point_rend_main
 
 
 class FeatureFusionBlock(nn.Module):
@@ -225,7 +226,8 @@ class Decoder(nn.Module):
         self.up_8_4 = UpsampleBlock(256, 256, 256) # 1/8 -> 1/4
 
         self.pred = nn.Conv2d(256, 1, kernel_size=3, padding=1, stride=1)
-
+        self.pointrend=point_rend_main()
+        
     def forward(self, f16, f8, f4, hidden_state, memory_readout, h_out=True):
         batch_size, num_objects = memory_readout.shape[:2]
 
@@ -236,6 +238,13 @@ class Decoder(nn.Module):
 
         g8 = self.up_16_8(f8, g16)
         g4 = self.up_8_4(f4, g8)
+        ##pointrend##
+        point_rend_prob=self.pointrend(torch.stack([g16,g8,g4]))
+        in_dim=point_rend_prob.shape[0]
+        out_dim=g4.shape[1]
+        fc=torch.nn.Linear(in_dim,out_dim) 
+        g4=fc(point_rend_prob)
+        ##pointrend##
         logits = self.pred(F.relu(g4.flatten(start_dim=0, end_dim=1)))
 
         if h_out and self.hidden_update is not None:
@@ -244,7 +253,7 @@ class Decoder(nn.Module):
         else:
             hidden_state = None
         
-        logits = F.interpolate(logits, scale_factor=4, mode='bilinear', align_corners=False)
+        logits = F.interpolate(logits, scale_factor=4, mode='bilinear', align_corners=False)##upsampling 6-11
         logits = logits.view(batch_size, num_objects, *logits.shape[-2:])
 
         return hidden_state, logits
