@@ -16,7 +16,9 @@ from dataset.vos_dataset import VOSDataset
 from util.logger import TensorboardLogger
 from util.configuration import Configuration
 from util.load_subset import load_sub_davis, load_sub_yv
-
+import sys
+sys.path.append('/scratch/bbsb/xu10/XMem/')
+sys.path.append('/scratch/bbsb/xu10/XMem/dataset/')
 
 """
 Initial setup
@@ -25,10 +27,19 @@ Initial setup
 distributed.init_process_group(backend="nccl")
 print(f'CUDA Device count: {torch.cuda.device_count()}')
 
+
 # Parse command line arguments
 raw_config = Configuration()
 raw_config.parse()
-
+# added Pengcheng 2023-6-27
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--exp_id", type=str, default=None, help="Experiment ID")
+parser.add_argument("--stage", type=str, default=None, help="Training stage")
+args = parser.parse_args()
+raw_config['exp_id'] ="retrain" #args.exp_id
+raw_config['stage'] = "03" #args.stage
+# above added Pengcheng 2023-6-27
 if raw_config['benchmark']:
     torch.backends.cudnn.benchmark = True
 
