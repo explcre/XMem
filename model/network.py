@@ -112,7 +112,7 @@ class XMem(nn.Module):
         if selector is not None:
             prob = prob * selector
         ##pointrend##
-        multi_scale_features_stacked=torch.stack(multi_scale_features)
+        multi_scale_features_stacked=torch.cat(multi_scale_features)
         features_stacked=torch.stack([memory_readout,
                                      multi_scale_features_stacked,
                                      hidden_state,
