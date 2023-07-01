@@ -72,7 +72,7 @@ parser = argparse.ArgumentParser(description='Process some inputs.')
 
 # Add argument
 parser.add_argument('--input_folder', type=str,
-                    help='An input folder for processing')
+                    help='An input folder for processing',default="/scratch/bbsb/xu10/pointrend-demo/inputs/camel-full")
 
 # Parse the arguments
 args = parser.parse_args()
@@ -181,12 +181,17 @@ def point_rend_main(im):
       # Run backbone.
       images = model.preprocess_image(batched_inputs)
       features = model.backbone(images.tensor)
-      
+      ############################
+      print("model",model)
+      print("model.backbone",model.backbone)
+      for k,v in features.items():
+          print("*"*100,f"features-{k}.shape",v.shape)
+      print("model.roi_heads",model.roi_heads)
       # Given the bounding boxes, run coarse mask prediction head.
       mask_coarse_logits = model.roi_heads.mask_head.coarse_head(model.roi_heads.mask_head._roi_pooler(features, pred_boxes))
 
       plot_mask(
-          mask_coarse_logits[instance_idx, category_idx].to("cpu"),
+          mask_coarse_logits[instance_idx, category_idx].cpu().detach().numpy(),#.to("cpu"),
           title=input_folder+file+"_02Coarse prediction"
       )
 
@@ -198,6 +203,8 @@ def point_rend_main(im):
       model.roi_heads.mask_head._feature_scales[k] 
       for k in model.roi_heads.mask_head.mask_point_in_features
     ]
+    print("mask_features_list",mask_features_list)
+    print("features_scales",features_scales)
 
     """### Point sampling during training
 
@@ -231,7 +238,7 @@ def point_rend_main(im):
 
       H, W = mask_coarse_logits.shape[-2:]
       plot_mask(
-        mask_coarse_logits[instance_idx, category_idx].to("cpu"),
+        mask_coarse_logits[instance_idx, category_idx].cpu().detach().numpy(),#.to("cpu"),
         title=input_folder+file+"_03Sampled points over the coarse prediction",
         point_coords=(
           W * point_coords[instance_idx, :, 0].to("cpu") - 0.5,
@@ -262,7 +269,7 @@ def point_rend_main(im):
     #with torch.no_grad():#commented by Pengcheng 2023-6-23
     if True:
       plot_mask(
-          mask_coarse_logits[0, category_idx].to("cpu").numpy(), 
+          mask_coarse_logits[0, category_idx].cpu().detach().numpy(),#.to("cpu").numpy(), 
           title=input_folder+file+"_04Coarse prediction"
       )
 
@@ -308,7 +315,7 @@ def point_rend_main(im):
           .view(R, C, H, W)
         )
         plot_mask(
-          mask_logits[instance_idx, category_idx].to("cpu"), 
+          mask_logits[instance_idx, category_idx].cpu().detach().numpy(),#.to("cpu"), 
           title=input_folder+file+"_05Subdivision step: {}".format(subdivions_step + 1),
           point_coords=(x, y)
         )
