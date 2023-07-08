@@ -17,8 +17,7 @@ import torch.nn.functional as F
 from model.group_modules import *
 from model import resnet
 from model.cbam import CBAM
-from PointRend import point_rend_main
-
+from .PointRend.model import pointrend,sampling_points
 
 class FeatureFusionBlock(nn.Module):
     def __init__(self, x_in_dim, g_in_dim, g_mid_dim, g_out_dim):
@@ -226,7 +225,11 @@ class Decoder(nn.Module):
         self.up_8_4 = UpsampleBlock(256, 256, 256) # 1/8 -> 1/4
 
         self.pred = nn.Conv2d(256, 1, kernel_size=3, padding=1, stride=1)
-        self.pointrend=point_rend_main()
+        self.pointrend=pointrend.PointHead(in_c=532, num_classes=21, k=3, beta=0.75)
+        ####
+        #in_dim=point_rend_prob.shape[0]
+        #out_dim=g4.shape[1]
+        #self.fc=torch.nn.Linear(in_dim,out_dim) 
         
     def forward(self, f16, f8, f4, hidden_state, memory_readout, h_out=True):
         batch_size, num_objects = memory_readout.shape[:2]
@@ -238,12 +241,32 @@ class Decoder(nn.Module):
 
         g8 = self.up_16_8(f8, g16)
         g4 = self.up_8_4(f4, g8)
+        print("#"*100,"f16 shape",f16.shape)
+        print("#"*100,"f8 shape",f8.shape)
+        print("#"*100,"f4 shape",f4.shape)
+        print("#"*100,"g16 shape",g16.shape)
+        print("#"*100,"g8 shape",g8.shape)
+        print("#"*100,"g4 shape",g4.shape)
+        print("pointhead",self.pointrend)
+        
         ##pointrend##
-        point_rend_prob=self.pointrend(torch.stack([g16,g8,g4]))
-        in_dim=point_rend_prob.shape[0]
-        out_dim=g4.shape[1]
-        fc=torch.nn.Linear(in_dim,out_dim) 
-        g4=fc(point_rend_prob)
+        g16 = torch.squeeze(g16, dim=2)  # Reshaping tensors
+        g8 = torch.squeeze(g8, dim=2)
+        g4 = torch.squeeze(g4, dim=2)
+        print("after squeeze dim2")
+        print("#"*100,"g16 shape",g16.shape)
+        print("#"*100,"g8 shape",g8.shape)
+        print("#"*100,"g4 shape",g4.shape)
+        # Upscale g16 and g8 to match the spatial dimensions of g4
+        g16 = F.interpolate(g16, size=g4.shape[-2:], mode='bilinear', align_corners=False)
+        g8 = F.interpolate(g8, size=g4.shape[-2:], mode='bilinear', align_corners=False)
+        print("after interpolate")
+        print("#"*100,"g16 shape",g16.shape)
+        print("#"*100,"g8 shape",g8.shape)
+        point_rend_input = torch.cat([g16, g8, g4], dim=1)  # Concatenating along the channel dimension
+        point_rend_prob = self.pointrend(point_rend_input)
+        g4=point_rend_prob#self.fc(point_rend_prob)
+        print("#"*100,"after point rend probility g4 shape",g4.shape)
         ##pointrend##
         logits = self.pred(F.relu(g4.flatten(start_dim=0, end_dim=1)))
 

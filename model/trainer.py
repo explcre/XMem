@@ -15,7 +15,6 @@ from model.network import XMem
 from model.losses import LossComputer
 from util.log_integrator import Integrator
 from util.image_saver import pool_pairs
-import PointRend
 
 class XMemTrainer:
     def __init__(self, config, logger=None, save_path=None, local_rank=0, world_size=1):

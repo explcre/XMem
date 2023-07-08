@@ -5,7 +5,7 @@ During evaluation, it is used by inference_core.py
 
 It further depends on modules.py which gives more detailed implementations of sub-modules
 """
-from PointRend import point_rend_main
+#from PointRend import point_rend_main
 import torch
 import torch.nn as nn
 
